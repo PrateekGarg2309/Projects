@@ -1,10 +1,3 @@
-% The following script involves deriving and plotting the transfer functions with respect to the 3 masses, performing modal analysis, analyzing the behaviour of the 
-system in low and high frequency regime including the resonance/anti-resonance peak, performing system identification using a chirp signal, plotting coherence,
-Introducing a transport delay and analyzing the modified frequency response. Further steps inluded designing a PID Controller within the contrains such as phase
-margin and gain margin, computing necessary tuning parameter, presenting the sensitivities and the stability margins of the designed controller, checking for 
-performane (reference tracking and disturbance rejection) of the feedback control with and without feedforward control, etc.
-
-
 syms Fx x1 x2 x3 d_b d_f d_xy k_b k_xy m_b m_x m_yz s
 % Fx=x1*(m_b*s^2+(d_f+d_b)*s+k_b)-x2*d_f*s
 % var = laplace(Fx)
