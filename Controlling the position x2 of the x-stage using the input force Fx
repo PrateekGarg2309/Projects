@@ -1,0 +1,311 @@
+% The following script involves deriving and plotting the transfer functions with respect to the 3 masses, performing modal analysis, analyzing the behaviour of the 
+system in low and high frequency regime including the resonance/anti-resonance peak, performing system identification using a chirp signal, plotting coherence,
+Introducing a transport delay and analyzing the modified frequency response. Further steps inluded designing a PID Controller within the contrains such as phase
+margin and gain margin, computing necessary tuning parameter, presenting the sensitivities and the stability margins of the designed controller, checking for 
+performane (reference tracking and disturbance rejection) of the feedback control with and without feedforward control, etc.
+
+
+syms Fx x1 x2 x3 d_b d_f d_xy k_b k_xy m_b m_x m_yz s
+% Fx=x1*(m_b*s^2+(d_f+d_b)*s+k_b)-x2*d_f*s
+% var = laplace(Fx)
+% Fx=-x1*d_f*s+x2*(m_x*s^2+(d_xy+d_f)*s+k_xy)-x3*(k_xy+d_xy*s)
+% 0==x2*(-k_xy-d_xy*s)+x3*(m_yz*s^2+d_xy*s+k_xy)
+
+%Finding X2/Fx
+%system parameters
+ts=1.25e-4
+m_b = 500; %[Kg]
+m_x = 2; %[Kg]
+m_yz = 3; %[Kg]
+k_b = 10^8; %[N/m]
+k_xy = 5*10^7; %[N/m]
+d_b = 6*10^4; %[Ns/m]
+d_f = 2*10^2; %[Ns/m]
+d_xy =10^3; %[Ns/m]
+A=[m_b*s^2+(d_f+d_b)*s+k_b -d_f*s 0;-d_f*s m_x*s^2+(d_xy+d_f)*s+k_xy -k_xy-d_xy*s;0 -k_xy-d_xy*s m_yz*s^2+d_xy*s+k_xy ]
+B=[m_b*s^2+(d_f+d_b)*s+k_b Fx 0;-d_f*s Fx -k_xy-d_xy*s;0 0 m_yz*s^2+d_xy*s+k_xy]
+X2=det(B)/det(A)
+output1=simplify(X2)
+tf1=output1/Fx %first transfer function
+simplify(tf1)
+%Finding X3/Fx
+B2=[m_b*s^2+d_f*s+d_b*s+k_b -d_f*s Fx;-d_f*s m_x*s^2+(d_xy*s+d_f*s)+k_xy Fx;0 -k_xy-d_xy*s 0]
+X3=det(B2)/det(A)
+output2=simplify(X3)
+tf2=output2/Fx %second transfer function
+%%
+%Plot the frequency response of the system via a Bode Plot: 
+G11(s) = X2(s)/Fx(s)
+%Numerator of G11
+num11 = [15 6812 253604*10^3 312*10^8 5*10^13 ]
+% Denominator of G11
+den11 = [30 31612 2*630185000 20622*10^7 2561*10^11 10^16 0]
+% Transfer Function G11
+G11 = tf(num11, den11)
+% Plot Frequency Response of G22
+subplot(221), bode(G11), grid 
+%%
+%Transfer Function: 
+G22(s) = X3(s)/Fx(s)
+% Numerator of G22
+num22 = [2500 500*250602  500*31100002  25*10^12]
+% Denominator of G11
+den22= [15 15806 63*10^7 10311*10^7 1281*10^11 5*10^15 0]
+% Transfer Function G22
+G22 = tf(num22, den22);
+% Plot Frequency Response of G11
+subplot(222), bode(G22), grid 
+%===========================================
+%%Perform a modal analysis of the system
+% mass and stiffness matrix
+M=[m_b 0 0 ;0 m_x 0;0 0 m_yz];
+K=[k_b 0 0 ;0 k_xy -k_xy;0 -k_xy k_xy]
+C= [d_b+d_f -d_f 0;-d_f d_f+d_xy -d_xy;0 -d_xy d_xy]
+%Eigenmatrix
+[phi, T]=eig(M^-1*K)
+phi1=phi(:,1); %eigenvector of mode 1
+phi2=phi(:,2); %eigenvector of mode 2
+phi3=phi(:,3); %eigenvector of mode 3
+MM1=phi1'*M*phi1; % Modal mass 1
+MM2=phi2'*M*phi2; % Modal mass 2
+MM3=phi3'*M*phi3; % Modal mass 3
+MK1=phi1'*K*phi1; % Modal stiffness 1
+MK2=phi2'*K*phi2; % Modal stiffness 2
+MK3=phi3'*K*phi3; % Modal stiffness 3
+MC1=phi1'*C*phi1; % Damping 1
+MC2=phi2'*C*phi2; % Damping2
+MC3=phi3'*C*phi3; % Damping3
+f01=sqrt(MM1\MK1)/(2*pi); % Eigenmode 1
+f02=sqrt(MM2\MK2)/(2*pi); % Eigenmode 2
+f03=sqrt(MM3\MK3)/(2*pi) ;% Eigenmode 3
+% Transfer functions
+opts = bodeoptions('cstprefs')
+opts.FreqUnits = 'Hz'
+s=tf('s')
+w=logspace(-1,3,1001)*2*pi
+% transfer functions
+% G222=phi1(2)*phi1(2)/(MM1*s^2+MK1)+phi2(2)*phi2(2)/(MM2*s^2+MK2)+phi3(2)*phi3(2)/(MM3*s^2+MK3)
+% bode(G222,w,opts); grid on
+% G32=phi1(2)*phi1(3)/(MM1*s^2+MK1)+phi2(2)*phi2(3)/(MM2*s^2+MK2)+phi3(2)*phi3(3)/(MM3*s^2+MK3)
+% bode(G32,w,opts); grid on
+G222=phi1(2)*phi1(2)/(MM1*s^2+MC1*s+MK1)+phi2(2)*phi2(2)/(MM2*s^2+MC2*s+MK2)+phi3(2)*phi3(2)/(MM3*s^2+MC3*s+MK3)
+bode(G222); grid on
+G32=phi1(2)*phi1(3)/(MM1*s^2+MC1*s+MK1)+phi2(2)*phi2(3)/(MM2*s^2+MC2*s+MK2)+phi3(2)*phi3(3)/(MM3*s^2+MC2*s+MK3)
+bode(G32); grid on
+%inroducing the dalay 
+Gd1 = G222*(exp(-0.000125*s))
+subplot(111), bode(Gd1), grid 
+Gd2 = G32*(exp(-0.000125*s))
+subplot(332), bode(Gd2), grid
+
+%in modes
+mode1=phi1(2)*phi1(2)/(MM1*s^2+MC1*s+MK1)
+subplot(111),bode(mode1),grid
+mode2=phi2(2)*phi2(2)/(MM2*s^2+MC2*s+MK2)
+subplot(111),bode(mode2),grid
+mode3=phi3(2)*phi3(2)/(MM3*s^2+MC3*s+MK3)
+subplot(111),bode(mode3),grid
+Gd1 = G22*exp(-0.000125*s)
+Gd1 = tf(G222,'InputDelay',-0.000125)
+ bode(Gd1); grid on
+Gd2 = tf(G32,'InputDelay',-0.000125)
+bode(Gd2);grid on 
+G22d=e^(-0.000125*s)
+sys = series(G22,G22d)
+
+xF=phi1(2)*phi1(3)/(MM1*s^2+MK1)+phi2(2)*phi2(3)/(MM2*s^2+MK2)+phi3(2)*phi3(3)/(MM3*s^2+MK3)
+subplot(223),bode(x2F2,w,opts); grid on, hold on
+G22=phi1(2)*phi1(2)/(MM1*s^2+MK1)+phi2(2)*phi2(2)/(MM2*s^2+MK2)+phi3(2)*phi3(2)/(MM3*s^2+MK3)
+subplot(221),bode(G22,w,opts); grid on, hold on
+G32=phi1(2)*phi1(3)/(MM1*s^2+MK1)+phi2(2)*phi2(3)/(MM2*s^2+MK2)+phi3(2)*phi3(3)/(MM3*s^2+MK3)
+subplot(222),bode(G32,w,opts); grid on, hold on
+
+%%%%%%%%%%%
+%Plot HW and LW OF the system 
+num111 = [1]
+% Denominator of G11
+den111 = [d_f 0]
+% Transfer Function G11
+G21 = tf(num111, den111)
+%Plot Frequency Response of G22
+subplot(221), bode(G21), grid 
+% %Transfer Function Hw
+numhw = [1]
+% Denominator of G11
+denlw = [m_x 0 0]
+% Transfer Function G11
+G21 = tf(numhw, denlw)
+%Plot Frequency Response of G22
+subplot(221), bode(G21), grid 
+% % Plot Frequency Response of G11
+% bode(G222),
+% hold on
+% bode(G2221,'r')
+A = [0 1 0 0 0 0;-k_b/m_b -(d_b+d_f)/m_b 0 d_f/m_b 0 0;0 0 0 1 0 0;0 d_f/m_x -k_xy/m_x (d_f/m_x)-(d_xy/m_x) k_xy/m_x d_xy/m_x;0 0 0 0 0 1;0 0 k_xy/m_yz d_xy/m_yz -k_xy/m_yz -d_xy/m_yz ];
+% B2 = [0 0; 1/m_cs -1/m_cs; 0 0; 0 1/m_fs];
+B2 = [0; 1/m_b; 0 ; 1/m_x;0;0 ];
+B = [0; 1/m_b; 0 ; 1/m_x;0;0 ];
+C2 = [ 0 0 1 0 0 0];
+C = [0 0 0 0 1 0];
+D = [0];
+D2 = [0];
+G = ss(A,B,C,D);
+G2 = ss(A,B2,C2,D2,'OutputDelay',3*ts)
+figure()
+bode(G2)
+ylim([-360 0])
+xlim([0.1 1e3]*2*pi)
+%%
+%%
+
+
+ts = 1.25e-4;
+Fs=1/ts;
+f=logspace(-1,3,10000);
+LW=round(length(input)/2);
+window=rectwin(LW)
+inp = input.Data(:);
+outp = output.Data(:);
+Time_in = input.Time(:);
+Time_out = output.Time(:);
+
+figure()
+plot(Time_in,inp'.','LineWidth',2)
+hold on
+plot(Time_out,outp,'.','linewidth',2)
+grid on
+
+
+[T,f] = tfestimate(inp,outp,[],[],[],Fs)
+[C,f] = mscohere(inp,outp,[],[],[],Fs)
+figure(1)
+subplot(3,1,1);semilogx(f,mag2db(abs(T)))
+ylabel('G(dB)')
+subplot(3,1,2);semilogx(f,rad2deg(angle(T)))
+ylabel('G(deg)')
+subplot(3,1,3);semilogx(f,C)
+ylabel('coherence')
+% %%compare
+data = frd(T,2*pi*f,ts);
+cohere = frd(C,2*pi*f,ts);
+opts = bodeoptions('cstprefs');
+opts.FreqUnits = 'Hz';
+opts.XLim= [1 1e4];
+% opts.PhaseVisible = 'on';
+opts.Grid = 'on';
+
+optsCoh = bodeoptions('cstprefs');
+optsCoh.FreqUnits = 'Hz';
+optsCoh.XLim= [1 4e3];
+optsCoh.Grid = 'on';
+optsCoh.PhaseVisible = 'off';
+optsCoh.MagUnits = 'abs';
+
+figure()
+bode(data,opts)
+hold on
+bode(G11,'r--',opts)
+legend('Estimated','Derived TF')
+grid on
+set(findall(gcf,'type','line'),'linewidth',2)
+figure()
+semilogx(f,C,'linewidth',2)
+%hold on
+%[C2,f2] = mscohere(den11,num11,[],[],[],Fs)
+% tsident = time_in(2:end)-time_in(1:(end-1))
+% figure()
+% patch([0 0 length(tsident) length(tsident)],[ts/1.001 ts*1.001 ts*1.001 ts/1.001],[0.9 0.9 0.9],'FaceAlpha',.5,'EdgeAlpha',0)
+% hold on
+% plot(tsident,'.')
+% %%
+% f = logspace(-1,3,1e2);
+% [Tcl,f] = tfestimate(input,output,[],[],f,Fs);
+% [cxy,f] = mscohere(input,output,[],[],f,Fs);
+%  data = frd(T,2*pi*f,Ts);
+% cohere = frd(C,2*pi*f,Ts);
+% 
+% %%
+% opts = bodeoptions('cstprefs');
+% opts.FreqUnits = 'Hz';
+% opts.XLim= [1 1e3];
+% % opts.PhaseVisible = 'on';
+% opts.Grid = 'on';
+% 
+% optsCoh = bodeoptions('cstprefs');
+% optsCoh.FreqUnits = 'Hz';
+% optsCoh.XLim= [1 5e3];
+% optsCoh.Grid = 'on';
+% optsCoh.PhaseVisible = 'off';
+% optsCoh.MagUnits = 'abs';
+% 
+% figure()
+% bode(data,opts)
+% hold on
+% bode(G11,'r--',opts)
+% legend('Measured','Ideal')
+% grid on
+% set(findall(gcf,'type','line'),'linewidth',2)
+% figure()
+% semilogx(f,C,'linewidth',2)
+% 
+% %% Design a controller
+% wc = 2*pi*270
+% k = 1/abs(freqresp(Gd1,wc));
+% kp = k/3;
+% %rule of thumb
+% wi = wc/10
+% wd = wc/3
+% wt = wc*3
+% H = 1*tf([1 wi],[1 0])*tf([1/wd 1],[1/wt 1])
+% k = 1/abs(freqresp(Gd1*H,wc))
+% H = k*tf([1 wi],[1 0])*tf([1/wd 1],[1/wt 1])
+% figure()
+% bode(Gd1)
+%  hold on
+% bode(Gd1*H)
+% margin(Gd1*H)
+% legend('system+delay','controlled sys')
+% % C = tf([KP KI],[1 0])
+% figure()
+% bode(H*Gd1)
+% loops = loopsens(H,Gd1)
+% bode(loops.Si,'r',loops.Ti)
+% legend('Sensitivity','Complementary Sensitivity')
+% 
+% % %
+% xlim([1 1e05])
+% ylim([-360 360])
+
+%
+Cd = c2d(controller,1.25e-4,'tustin')
+[Cdnum,Cdden] = tfdata(Cd,'v')
+
+
+% % % % 
+% % % 
+% % %low and high frequency
+% % numLW = [(phi1(2))^2*MK2+(phi2(2))^2*MK1 ]
+% % % Denominator of G11
+% % denLW = [MK1*MK2*MK3]
+% % % Transfer Function G11
+% % G44 = tf(numLW, denLW)
+% % % Plot Frequency Response of G22
+% % subplot(443), bode(G44), grid 
+% % hold on
+% % %High frequency
+% % numHW = [(phi1(2))^2*MM2+(phi2(2))^2*MM1 ]
+% % % Denominator of G11
+% % denHW = [MM2*MM1 0 0]
+% % % Transfer Function G11
+% % G44 = tf(numHW, denHW)
+% % % Plot Frequency Response of G22
+% % subplot(443), bode(G44), grid 
+% % 
+% % 
+% %% Design a controller
+% sim_time=0.000125
+% step_final=1
+% Kp=1000;
+% Ki=0;
+% Kd=0;
+% sim('designcontroller')
