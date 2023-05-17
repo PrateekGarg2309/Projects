@@ -1,0 +1,139 @@
+%% Constants/variables
+
+%lengths/initial lenghts
+L1 = 5 * 10^-3;
+L2 = 60 * 10^-3;
+L3 = 20 * 10^-3;
+L4 = 40 * 10^-3;
+L5 = 35 * 10^-3;
+
+%card
+w_c = 55 * 10^-3;   % card width
+h_c = 30 * 10^-3;   % card height
+
+%base
+x_b = -14.984 * 10^-3;  % x-coord base
+y_b = -80 * 10^-3;  % y-coord base
+b = 24 * 10^-3;     % base width
+
+%input force
+Fin = 6;
+
+%input
+dy_in = 10 * 10^-3;
+
+%% Kinematics
+%initial position
+Lp0 = sqrt(L1^2+L4^2);
+beta1_0 = acos((L5^2+Lp0^2-L3^2)/(2*L5*Lp0));
+beta2_0 = acos(L1/Lp0);
+
+theta20 = beta1_0 + beta2_0;
+theta30 = asin(L4/L3 - L5/L3 * sin(theta20));
+
+x0_in = x_b + L1;
+y0_in = y_b + L4;
+x0_out = L2 * -cos(pi - theta20) + x_b;
+y0_out = L2 * sin(pi - theta20) + y_b;
+
+%position after input
+Lp = sqrt(L1^2+(L4+dy_in)^2);
+beta1 = acos((L5^2+Lp^2-L3^2)/(2*L5*Lp));
+beta2 = acos(L1/Lp);
+
+theta2 = beta1 + beta2;
+theta3 = asin((L4+dy_in)/L3 - L5/L3 * sin(theta2));
+
+x_in = x0_in;
+y_in = y_b + L4 + dy_in;
+x_out = L2 * -cos(pi - theta2) + x_b;
+y_out = L2 * sin(pi - theta2) + y_b;
+
+%difference in position
+dx_out = x_out - x0_out;
+dy_out = y_out - y0_out;
+
+%% Stiffness
+K_O = 23; %[Nm/rad]
+
+K1 = K_O;
+K2 = K_O;
+K3 = K_O;
+
+%% Force equation
+
+THETA1 = theta3 - theta30;
+THETA2 = (theta3 - theta30) - (theta2 - theta20);
+THETA3 = theta2 - theta20;
+
+Tin = Fin*cos(theta3)*L3;
+Tgrip = K1*THETA1*(L2*cos(theta2)/L3*cos(theta3)) - K2*THETA2*((L2*cos(theta2)/L3*cos(theta3))-1) + 4*K3*THETA3 + Tin*(L2*cos(theta2)/L3*cos(theta3));
+
+Fgrip = Tgrip/(cos(pi-theta2)*L2);
+
+Fratio = Fgrip/Fin;
+
+%% Print values
+fprintf('Theta20 = %f\n', theta20);
+fprintf('Theta2 = %f\n', theta2);
+fprintf('Theta30 = %f\n', theta30);
+fprintf('Theta3 = %f\n', theta3);
+fprintf('\r');
+fprintf('x_out = %f\n', x_out);
+fprintf('y_out = %f\n', y_out);
+fprintf('\r');
+fprintf('dx_out = %f\n', dx_out);
+fprintf('dy_out = %f\n', dy_out);
+fprintf('\r');
+fprintf('Input force = %f\n', Fin);
+fprintf('Gripping force = %f\n', Fgrip);
+fprintf('Force ratio = %f\n', Fratio);
+fprintf('\r');
+
+%% Visualisation
+clf
+Tend = 20;
+Ts = 0.1;
+
+for i=1:length(0:Ts:Tend)
+    %Card
+    Card = rectangle('Position',[-w_c/2,-h_c/2,w_c,h_c],'edgecolor','r');
+
+    %Gripper parts
+    GP1 = line([x_out-b,x_out],[y_out,y_out],'color','b');
+    GP2 = line([x_out,x_out],[y_out,y_out+30*10^-3],'color','b');
+    GP3 = line([x_out-b,x_out],[y_out,y_out+30*10^-3],'color','b');
+
+    GP4 = line([-x_out+b,-x_out],[y_out,y_out],'color','b');
+    GP5 = line([-x_out,-x_out],[y_out,y_out+30*10^-3],'color','b');
+    GP6 = line([-x_out+b,-x_out],[y_out,y_out+30*10^-3],'color','b');
+
+    %parallel mechanism
+    PL1 = line([x_out,x_b],[y_out,y_b],'color','b');
+    PL2 = line([x_out - b,x_b - b],[y_out,y_b],'color','b');
+
+    PL3 = line([-x_out,-x_b],[y_out,y_b],'color','b');
+    PL4 = line([-x_out + b,-x_b + b],[y_out,y_b],'color','b');
+
+    %scott-Russell mechanism
+    SR1 = line([x_b - L5*cos(pi-theta2),x_in],[y_in - L3*sin(theta3),y_in],'color','b');
+    SR2 = line([-x_b + L5*cos(pi-theta2),-x0_in],[y_in - L3*sin(theta3),y_in],'color','b');
+
+    %base
+    BB1 = rectangle('Position',[x_b-b,y_b-10*10^-3,b,10*10^-3],'EdgeColor','b');
+    BB2 = rectangle('Position',[-x_b,y_b-10*10^-3,b,10*10^-3],'EdgeColor','b');
+
+    %input body
+    IB1 = line([x_in,-x_in],[y_in,y_in],'color','b');
+
+    IB2 = line([x_in,x_in+5*10^-3],[y_in,y_in-10*10^-3],'color','b');
+    IB3 = line([x_in+5*10^-3,x_in+5*10^-3],[y_in-10*10^-3,y_in-100*10^-3],'color','b');
+
+    IB4 = line([-x_in,-x_in-5*10^-3],[y_in,y_in-10*10^-3],'color','b');
+    IB5 = line([-x_in-5*10^-3,-x_in-5*10^-3],[y_in-10*10^-3,y_in-100*10^-3],'color','b');
+
+    xlim([-0.1 0.1])   
+    ylim([-0.1 0.1])
+    grid on
+
+end
