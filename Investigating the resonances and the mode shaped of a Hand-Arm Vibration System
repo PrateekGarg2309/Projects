@@ -1,0 +1,254 @@
+%
+
+
+
+
+
+syms x_0 x_1 x_2 x_3 y_3 x_4 y_4 theta_3 real
+syms x_dot_0 x_dot_1 x_dot_2 x_dot_3 y_dot_3 x_dot_4 y_dot_4 theta_dot_3 real
+syms x_ddot_0 x_ddot_1 x_ddot_2 x_ddot_3 y_ddot_3 x_ddot_4 y_ddot_4 theta_ddot_3 real
+syms m_1 m_2 m_3 J_3 k_1 k_2 k_3 k_4 k_5 k_t c_1 c_2 c_3 c_4 c_5 c_t L_g L g theta_tilde real positive
+
+par.m_1 = m_1;
+par.m_2 = m_2;
+par.m_3 = m_3;
+par.J_3 = J_3;
+par.k_1 = k_1;
+par.k_2 = k_2;
+par.k_3 = k_3;
+par.k_4 = k_4;
+par.k_5 = k_5;
+par.k_t = k_t;
+par.c_1 = c_1;
+par.c_2 = c_2;
+par.c_3 = c_3;
+par.c_4 = c_4;
+par.c_5 = c_5;
+par.c_t = c_t;
+par.L = L;
+par.L_g = L_g;
+
+par.theta_tilde = theta_tilde;
+
+Numeric parameters
+You can comment this section to get the equations fully parametric, this will make the script run slower and the numerical simulations etc won't work. This is mainly to obtain nice parametric equations for in the report.
+par.m_1 = 0.45;
+par.m_2 = 1.15;
+par.m_3 = 1.9;
+par.J_3 = 0.0149;
+par.k_1 = 155.8*1000;
+par.k_2 = 23.6*1000;
+par.k_3 = 444.6*1000;
+par.k_4 = 415.4*1000;
+par.k_5 = 50.25*1000;
+par.k_t = 2;
+par.c_1 = 30;
+par.c_2 = 202.84;
+par.c_3 = 500;
+par.c_4 = 164.59;
+par.c_5 = 49.99;
+par.c_t = 4.9;
+par.L = 0.298;
+par.L_g = 0.6*par.L;
+
+par.theta_tilde = pi/2;
+
+Generalized coordinates:
+% Generalized coordinates and derivatives
+q = [x_1; x_2; x_3; y_3; theta_3];
+q_dot = [x_dot_1; x_dot_2; x_dot_3; y_dot_3; theta_dot_3];
+q_ddot = [x_ddot_1; x_ddot_2; x_ddot_3; y_ddot_3; theta_ddot_3];
+
+% COMs and derivatives
+x = [x_1; x_2; x_3+(par.L_g)*cos(theta_3); y_3+(par.L_g)*sin(theta_3); theta_3];
+x_4 = x_3 + par.L*cos(theta_3);
+y_4 = y_3 + par.L*sin(theta_3);
+x_dot_4 = jacobian(x_4,q)*q_dot;
+y_dot_4 = jacobian(y_4,q)*q_dot;
+
+x_dot = simplify(jacobian(x, q)*q_dot);
+
+% Mass/Stiffness/Damping matrices
+M = diag([par.m_1; par.m_2; par.m_3; par.m_3; par.J_3]);
+K = diag([par.k_1; par.k_2; par.k_3; par.k_t; par.k_4; par.k_5]);
+C = diag([par.c_1; par.c_2; par.c_3; par.c_t; par.c_4; par.c_5]);
+
+xk = [x_1-x_0; x_2-x_1; x_3-x_2; theta_3-par.theta_tilde; x_4; y_4];
+xc = [x_dot_1-x_dot_0; x_dot_2-x_dot_1; x_dot_3-x_dot_2; theta_dot_3; x_dot_4; y_dot_4];
+
+
+Lagrange:
+% Energies
+T = simplify(0.5*x_dot'*M*x_dot);
+V = simplify(0.5*xk'*K*xk);
+D = simplify(0.5*xc'*C*xc);
+
+% Derivatives
+T_dq = (jacobian(T,q_dot));
+T_dq_dt = (jacobian(T_dq,q)*q_dot + jacobian(T_dq,q_dot)*q_ddot);
+T_q = (jacobian(T,q));
+V_q = (jacobian(V,q));
+D_dq = jacobian(D, q_dot);
+
+% Lagrangian
+L = simplify(T_dq_dt - T_q' + V_q' + D_dq');
+
+Equations of motion:
+% Getting Equations Of Motion
+S = solve(L==zeros(5,1),q_ddot);
+acc = simplify([S.x_ddot_1; S.x_ddot_2; S.x_ddot_3; S.y_ddot_3; S.theta_ddot_3]);
+
+% Storing as Matlab file function, this is a different way of representing
+% the equations of motion, for simulation of the nonlinear model
+matlabFunction(acc,'File','EOMs');
+
+Equilibria:
+% Filling in zero velocities in the Equations Of Motion
+no_vel = EOMs(theta_3,0,0,x_1,x_2,x_3,0,0,0,0,y_3,0);
+% Setting the Equations Of Motion (the accelerations) to 0
+q_eq= [0;0;0;-par.L;par.theta_tilde]
+
+% Check if q_eq returns zero
+subs(no_vel, [x_1, x_2, x_3, y_3, theta_3], q_eq')
+
+Integration nonlinear system:
+% Setting time parameters
+dt = 0.01;
+T = 3;
+t = 0:dt:T;
+
+% Initial condition: eq value
+y0 = [q_eq;0 ;0;0;0;0;0;0];
+
+% Integrate with ode45, check at the bottom of the script for the function f(t,y), which
+% is the differential equation. Input is also specified at the bottom 
+[t,y] = ode45(@(t, y) f(t, y), t, y0);
+
+% Simulate to check if the motion makes sense
+simple_simulation(y, par)
+
+Linearization:
+% Taking Jacobian matrices
+M = jacobian(L, q_ddot);
+C = jacobian(L, q_dot);
+K = jacobian(L, q);
+Q = jacobian(L, [x_0; x_dot_0]);
+
+% Exporting to matlab function file
+matlabFunction(M,C,K,Q, 'File', 'linsys');
+
+% Filling in equilibrium
+[M,C,K,Q] = linsys(par.theta_tilde,0,0,0,0,0,-par.L,0,0)
+K = double(K);
+now, the equation will be:
+
+
+Eigen frequencies and modes without damping:
+% Checking if M and K are symmetric and positive definite
+Msymmetric = isequal(M, M') % Output is 1 for symmetric M
+Ksymmetric = isequal(K, K') % Output is 1 for symmetric K
+Mposdef = any(eig(M) <= 0) % Output is 0 for positive definite M
+Kposdef = any(eig(K) <= 0) % Output is 0 for positive definite K
+
+% Solving eigenvalue problem
+[modes_undamped, freqs_undamped] = polyeig(K, zeros(5,5), M)
+
+% Extracting unique eigenvalues and mode shapes
+freq_undamped_unique = abs(imag(freqs_undamped([1 3 5 7 9],:)'))
+modes_undamped_unique = modes_undamped(:,[1 3 5 7 9]);
+
+% Normalizing the mmode shapes by dividing them by the max value of mode
+% column
+modes_undamped_normalized = zeros(size(modes_undamped_unique));
+for col = 1:size(modes_undamped_unique,2)
+    modes_undamped_normalized(:,col) = modes_undamped_unique(:,col)/max(modes_undamped_unique(:,col));
+end
+modes_undamped_normalized
+
+Eigen frequencies and modes with damping
+% Checking if C is positive definite
+Cposdef = any(eig(C) <= 0) % Output is 0 for positive definite C
+
+% Solving eigenvalue problem
+[modes_damped, freqs_damped] = polyeig(K, C, M)
+
+% Solving eigenvalue problem with SC statespace method
+[modes_damped_sc, freqs_damped_sc] = eig([zeros(5,5) eye(5); -M\K -M\C]);
+modes_damped_sc = modes_damped_sc(6:end,:)
+freqs_damped_sc = diag(freqs_damped_sc)
+
+% Solving eigenvalue prolbem with ED statespace method
+[modes_damped_ed, freqs_damped_ed] = eig(-[M zeros(5,5); zeros(5,5) K]\[C K; -K zeros(5,5)]);
+modes_damped_ed = modes_damped_ed(1:5,:)
+freqs_damped_ed = diag(freqs_damped_ed)
+Damping ratios
+% Getting damping coefficient matrix
+beta = zeros(10,10);
+for i=1:10
+    for j=1:10
+        beta(i,j) = modes_damped(:,i)'*C*modes_damped(:,j);
+    end
+end
+
+% Setting up vectors for modal mass and damping ratios
+eps = zeros(10,1);
+mu = zeros(10,1);
+
+% Looping through modes to obtain modal mass and damping ratios
+for i=1:10
+    mu(i) = modes_damped(:,i)'*M*modes_damped(:,i);
+    eps(i) = beta(i,i)/(2*mu(i)*abs(freqs_damped(i)));
+end
+
+% Print damping ratios
+eps
+
+Visualization:
+for jj = 1:length(freq_undamped_unique)
+    file_name = "Undamped_mode"+ jj +".avi";
+    Animation_of_modes(freq_undamped_unique(jj),modes_undamped_normalized(:,jj)',file_name)
+end
+
+Functions
+function dy = f(t, y) % Differential equation for integrating and simulating the nonlinear system
+    dy(1) = y(7);
+    dy(2) = y(8);
+    dy(3) = y(9);
+    dy(4) = y(10);
+    dy(5) = y(11);
+    dy(6) = y(12);
+    acc = double( EOMs(y(5),y(11),y(6),y(1),y(2),y(3),y(12),y(7),y(8),y(9),y(4),y(10)));
+    dy(7) = acc(1);
+    dy(8) = acc(2);
+    dy(9) = acc(3);
+    dy(10) = acc(4);
+    dy(11) = acc(5);
+    dy(12) = u(t);
+    dy = dy';
+end
+
+% function for the acceleration of x_0, for simulating purposes. You can
+% change this to whatever you want to see how the system responds
+function out = u(t)
+    out = cos(4.9988*t);
+end
+
+function simple_simulation(y, par)
+    for i=1:length(y(:,1)) 
+        fig = figure(1);
+        plot(0,0,'o') % Plot the origin
+        hold on
+        grid on
+        plot([y(i,3), y(i,3)+par.L*cos(y(i,5))], [y(i,4), y(i,4)+par.L*sin(y(i,5))]) % Plot the link (mass 3)
+        plot(y(i,2), y(i,4), 's') % Plot mass 2
+        plot(y(i,1), y(i,4), 'x') % Plot mass 1
+        plot(y(i,6), y(i,4), 'o') % Plot point x_0
+        xlim([-0.6,0.6])
+        ylim([-0.4,0.1])
+        legend('Origin', 'Mass 3', 'Mass 2', 'Mass 1', 'Excitation of x0')
+        title('Motion simulation')
+        drawnow
+        hold off
+    end
+end
+
