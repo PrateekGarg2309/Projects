@@ -43,7 +43,7 @@ Model:
 ![2](https://github.com/PrateekGarg2309/Projects/assets/133784841/49b5ada7-a2a9-4251-97bc-26e1f2258db5)
 
 
-# Project2 : Investigating the resonances and the mode shapes of a Hand-Arm Vibration system
+# Project2 : CD-Head Internal Dynamics
 
 Description - 
 
