@@ -1,0 +1,146 @@
+clear all
+close all
+clc
+load  ClosedLoopSignals  
+%%
+% t=0:0.125e-3:*0.125e-3
+% t=0:0.125e-3:80000*0.125e-3
+% % t=0:0.125e-3:2099*0.125e-3
+% ts=t',ClosedLoopSignals
+% fs=8000
+t=0:0.125e-3:800000*0.125e-3
+T1=t',ClosedLoopSignals(:,1)
+T2=t',ClosedLoopSignals(:,2)
+T3=t',ClosedLoopSignals(:,3)
+T4=t',ClosedLoopSignals(:,4)
+f=ClosedLoopSignals(:,1)
+u=ClosedLoopSignals(:,2)
+x=ClosedLoopSignals(:,3)
+e=ClosedLoopSignals(:,4)
+
+%%
+Fs = 8000;            % Sampling frequency                    
+Ts = 1/Fs;             % Sampling period 
+L=length(f)           %Frequency vector
+frq=Fs*(0:(L/2))/L;
+
+%% Plot time signals
+figure()
+subplot(2,1,1)
+plot(T1,ClosedLoopSignals(:,1))
+hold on
+plot(T1,ClosedLoopSignals(:,2))
+legend('f','u')
+ylabel('[N]')
+subplot(2,1,2)
+yyaxis left
+plot(T1,ClosedLoopSignals(:,3))
+ylabel('x [m]')
+hold on
+yyaxis right
+plot(T1,ClosedLoopSignals(:,4))
+legend('x','e')
+ylabel('e [m]')
+xlabel('time [s]')
+%-------------------------------------
+
+%% Calculate and present the closed-loop frequency responses
+% figConfig(2,2)
+% 
+ts = 1.25e-4;
+Fs=1/ts;
+
+f=logspace(0,3,1001);
+LW=round(length(ClosedLoopSignals(:,1))/3);
+%window=rectwin(LW)
+window=hann(LW)
+inp = ClosedLoopSignals(:,1);
+outp = ClosedLoopSignals(:,2);
+Time_in = T1;
+Time_out =T2;
+
+figure()
+plot(Time_in,inp'.','LineWidth',2)
+hold on
+plot(Time_out,outp,'.','linewidth',2)
+grid on
+
+[Tx,f] = tfestimate(inp,outp,window,[],[],Fs)
+[C,f] = mscohere(inp,outp,window,[],[],Fs)
+figure(1)
+subplot(3,1,1);semilogx(f,mag2db(abs(Tx)))
+ylabel('G(dB)')
+subplot(3,1,2);semilogx(f,rad2deg(angle(Tx)))
+ylabel('G(deg)')
+subplot(3,1,3);semilogx(f,C)
+ylabel('coherence')
+% % % %%%
+inp1 = ClosedLoopSignals(:,1);
+outp1 = ClosedLoopSignals(:,3);
+Time_in = T1;
+Time_out =T3;
+
+figure()
+plot(Time_in,inp1'.','LineWidth',2)
+hold on
+plot(Time_out,outp1,'.','linewidth',2)
+grid on
+[T11,f1] = tfestimate(inp1,outp1,window,[],[],Fs)
+[C1,f1] = mscohere(inp1,outp1,window,[],[],Fs)
+figure(1)
+subplot(3,1,1);semilogx(f1,mag2db(abs(T11)))
+ylabel('G(dB)')
+subplot(3,1,2);semilogx(f1,rad2deg(angle(T11)))
+ylabel('G(deg)')
+subplot(3,1,3);semilogx(f1,C1)
+ylabel('coherence')
+
+%% Calculate and present the frequency response of the plant
+%figConfig(2,2)
+Data        = ClosedLoopSignals;
+[UF,u]     = tfestimate(Data(:,1),Data(:,2),window,[],frq,Fs);
+[XF,x]     = tfestimate(Data(:,1),Data(:,3),window,[],frq,Fs);
+cm = colormap(lines);
+figure()
+semilogx(frq,20*log10(abs(UF)),'linewidth', 2,'Color', cm(1,:));
+hold on
+semilogx(frq,20*log10(abs(XF)),'linewidth', 2,'Color', cm(2,:));
+legend('u/f','x/f')
+ylabel('Magnitude [dB]')
+xlabel('f [Hz]')
+
+%%  Compute the transfer function from u to x
+P		= frd(-XF./UF, frq ,'units','Hz');
+figure()
+bode(P)
+legend('x/u')
+
+% Calculate and present the frequency responses of the controller (C) used in the experiments
+ts = 1.25e-4;
+Fs=1/ts;
+f=logspace(0,3,1001);
+LW=round(length(ClosedLoopSignals(:,4))/3);
+ Window=hann(LW)
+inp = ClosedLoopSignals(:,4);
+outp = ClosedLoopSignals(:,2)-ClosedLoopSignals(:,1);
+Time_in = t;
+Time_out =t;
+
+figure()
+plot(Time_in,inp'.','LineWidth',2)
+hold on
+plot(Time_out,outp,'.','linewidth',2)
+grid on
+
+[Tc,fc] = tfestimate(inp,outp,Window,[],[],Fs)
+[Cc,fc] = mscohere(inp,outp,Window,[],[],Fs)
+figure(1)
+subplot(3,1,1);semilogx(fc,mag2db(abs(Tc)))
+ylabel('G(dB)')
+subplot(3,1,2);semilogx(fc,rad2deg(angle(Tc)))
+ylabel('G(deg)')
+subplot(3,1,3);semilogx(fc,Cc)
+ylabel('coherence')
+
+
+
