@@ -1,8 +1,10 @@
-%
-
-
-
-
+% With years of continuous use of vibratory tools, workers will be exposed to the risk of crippling degenerative hand-arm vibration syndrome. Your objective is to derive a dynamical model that
+could aid obtaining eigenfrequencies, eigenmodes, and damping ratio of the hand-arm system. The hand-arm vibratory system is a three-dimensional problem consisting of many degrees of freedom. The muscles are continuum elements that show viscoelastic
+behavior upon loading, and bones are stiff parts that undergo elastic deformations when subjected to external forces. The goal is to model the motion only in the x − y plane. For this we use three masses (m1, m2, and m3), five translational springs (k1 − k5), one rotational spring (kt3), five translational dampers (c1 − c5), and one rotational damper (ct3). Masses m1, m2, and m3 represent the
+palm, lower arm, and upper arm, respectively. J3g is the mass moment of inertia for m3 with respect to its center of mass. The upper arm (m3) is attached to the lower arm (m2) with the
+elbow joint and to the body (environment) with the shoulder joint. Lg shows the center of mass of the upper arm with respect to the elbow joint whose total length is L. On the other hand, ˜θ is the
+orientation of the upper arm while working with the hand-held vibratory tool. For the worker’s comfort, and ease of usage of the vibrating tool, it is desired that this angle remains constant while
+using the tool.
 
 syms x_0 x_1 x_2 x_3 y_3 x_4 y_4 theta_3 real
 syms x_dot_0 x_dot_1 x_dot_2 x_dot_3 y_dot_3 x_dot_4 y_dot_4 theta_dot_3 real
